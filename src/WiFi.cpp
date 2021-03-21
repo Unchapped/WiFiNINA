@@ -83,6 +83,7 @@ int WiFiClass::begin(const char* ssid, uint8_t key_idx, const char *key)
    return status;
 }
 
+//TODO: rewrite this to use the nonblocking version. for now, this hack works
 int WiFiClass::begin(const char* ssid, const char *passphrase)
 {
 	uint8_t status = WL_IDLE_STATUS;
@@ -100,6 +101,42 @@ int WiFiClass::begin(const char* ssid, const char *passphrase)
  	   }
     }else{
     	status = WL_CONNECT_FAILED;
+    }
+    return status;
+}
+
+//TODO: rename this to a begin_nb method, and rewrite the standard begin to leverage it. for now, this hack works
+int WiFiClass::begin_nb(const char* ssid, const char *passphrase)
+{
+	uint8_t status = WL_IDLE_STATUS;
+	static bool connect_in_progress = false;
+	static unsigned long start = 0;
+
+	if (!connect_in_progress) { //no connection pending, start new connection
+		// set passphrase
+    	if (WiFiDrv::wifiSetPassphrase(ssid, strlen(ssid), passphrase, strlen(passphrase))!= WL_FAILURE)
+    	{
+    		connect_in_progress = true;
+    		start = millis();
+    		//TODO: add a pending connection state, for now, return 0;
+    	} else {
+    		status = WL_CONNECT_FAILED;
+    	}
+    } else {
+
+	    if ((millis() - start) < _timeout)
+ 	    {
+			//delay(WL_DELAY_START_CONNECTION);
+			status = WiFiDrv::getConnectionStatus();
+			if ((status != WL_IDLE_STATUS) && (status != WL_NO_SSID_AVAIL) && (status != WL_SCAN_COMPLETED)) { //connection complete
+				connect_in_progress = false;
+			} else { //still spinning
+				status = 0;
+			}
+ 	    } else {
+ 	   		connect_in_progress = false;
+    		status = WL_CONNECT_FAILED;
+    	}
     }
     return status;
 }

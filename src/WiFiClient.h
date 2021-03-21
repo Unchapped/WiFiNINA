@@ -25,6 +25,8 @@
 #include "Client.h"
 #include "IPAddress.h"
 
+#define WIFICLIENT_TIMEOUT 500
+
 class WiFiClient : public Client {
 
 public:

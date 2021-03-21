@@ -76,6 +76,9 @@ public:
      */
     int begin(const char* ssid, const char *passphrase);
 
+    //nonblocking version of the same function
+    int begin_nb(const char* ssid, const char *passphrase);
+
     uint8_t beginAP(const char *ssid);
     uint8_t beginAP(const char *ssid, uint8_t channel);
     uint8_t beginAP(const char *ssid, const char* passphrase);

@@ -33,6 +33,7 @@ extern "C" {
 #include "WiFi.h"
 #include "WiFiClient.h"
 
+
 uint16_t WiFiClient::_srcport = 1024;
 
 WiFiClient::WiFiClient() : _sock(NO_SOCKET_AVAIL), _retrySend(true) {
@@ -64,7 +65,7 @@ int WiFiClient::connect(IPAddress ip, uint16_t port) {
     	unsigned long start = millis();
 
     	// wait 4 second for the connection to close
-    	while (!connected() && millis() - start < 10000)
+    	while (!connected() && millis() - start < WIFICLIENT_TIMEOUT)
     		delay(1);
 
     	if (!connected())
@@ -93,7 +94,7 @@ int WiFiClient::connectSSL(IPAddress ip, uint16_t port)
       unsigned long start = millis();
 
       // wait 4 second for the connection to close
-      while (!connected() && millis() - start < 10000)
+      while (!connected() && millis() - start < WIFICLIENT_TIMEOUT)
         delay(1);
 
       if (!connected())
@@ -122,7 +123,7 @@ int WiFiClient::connectSSL(const char *host, uint16_t port)
       unsigned long start = millis();
 
       // wait 4 second for the connection to close
-      while (!connected() && millis() - start < 10000)
+      while (!connected() && millis() - start < WIFICLIENT_TIMEOUT)
         delay(1);
 
       if (!connected())
@@ -151,7 +152,7 @@ int WiFiClient::connectBearSSL(IPAddress ip, uint16_t port)
       unsigned long start = millis();
 
       // wait 4 second for the connection to close
-      while (!connected() && millis() - start < 10000)
+      while (!connected() && millis() - start < WIFICLIENT_TIMEOUT)
         delay(1);
 
       if (!connected())
@@ -180,7 +181,7 @@ int WiFiClient::connectBearSSL(const char *host, uint16_t port)
       unsigned long start = millis();
 
       // wait 4 second for the connection to close
-      while (!connected() && millis() - start < 10000)
+      while (!connected() && millis() - start < WIFICLIENT_TIMEOUT)
         delay(1);
 
       if (!connected())
@@ -297,10 +298,18 @@ void WiFiClient::stop() {
 
   ServerDrv::stopClient(_sock);
 
-  int count = 0;
   // wait maximum 5 secs for the connection to close
+  /* TODO: Why is this also terrible, and in a unique way!?!?!?!?! 
+  int count = 0;
   while (status() != CLOSED && ++count < 50)
     delay(100);
+
+  */
+
+  unsigned long start = millis();
+  // wait 4 second for the connection to close
+  while (status() != CLOSED && millis() - start < WIFICLIENT_TIMEOUT)
+    delay(1);
 
   WiFiSocketBuffer.close(_sock);
   _sock = 255;
