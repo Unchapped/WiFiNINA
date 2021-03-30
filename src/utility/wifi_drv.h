@@ -57,8 +57,10 @@ private:
     static void getNetworkData(uint8_t *ip, uint8_t *mask, uint8_t *gwip);
 
     static uint8_t reqHostByName(const char* aHostname);
+    static uint8_t reqHostByName_nb(const char* aHostname); //Nonblocking Version
 
     static int getHostByName(IPAddress& aResult);
+    static int getHostByName_nb(IPAddress& aResult); //Nonblocking Version
 
     /*
      * Get remote Data information on UDP socket
@@ -264,6 +266,7 @@ public:
      *          else error code
      */
     static int getHostByName(const char* aHostname, IPAddress& aResult);
+    static int getHostByName_nb(const char* aHostname, IPAddress& aResult);
 
     /*
      * Get the firmware version

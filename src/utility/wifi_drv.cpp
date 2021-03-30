@@ -748,6 +748,63 @@ uint8_t WiFiDrv::reqHostByName(const char* aHostname)
     return result;
 }
 
+uint8_t WiFiDrv::reqHostByName_nb(const char* aHostname)
+{   
+    static int _reqstate = 0; //TODO: this assumes only one request is ever pending! This should probably be protected with a mutex, but I'm lazy and in my application it should be fine!
+
+    if (_reqstate == 0) { //block 0 //check that the Spi Driver is initialized
+        if (!SpiDrv::initialized) SpiDrv::begin(); //TODO: blocking, but we'll deal with it later.
+        _reqstate = 1;
+    }
+
+    if (_reqstate == 1 || _reqstate == 2) { //blocks 1 and 2 used to waitForSlaveReady
+        //SpiDrv::waitForSlaveReady(); //Blocking version spi_drv.cpp line 218
+        if (!SpiDrv::spiSlaveReady()) return 0; //slave is not ready
+    }
+    
+    if (_reqstate == 1) { //block 1 - Send Command
+        //Initiate Transaction
+        SpiDrv::spiSlaveSelect();
+
+        // Send Command
+        SpiDrv::sendCmd(REQ_HOST_BY_NAME_CMD, PARAM_NUMS_1);
+        SpiDrv::sendParam((uint8_t*)aHostname, strlen(aHostname), LAST_PARAM);
+
+        // pad to multiple of 4
+        int commandSize = 5 + strlen(aHostname);
+        while (commandSize % 4) {
+            SpiDrv::readChar();
+            commandSize++;
+        }
+
+        SpiDrv::spiSlaveDeselect();
+        _reqstate = 2;
+        return 0; // so as to not escape the ready wait above, note this is expected to have some delay also...
+    }
+
+    if (_reqstate == 2) { //block 2 - Wait for Command Confirmation
+        //Wait the reply elaboration
+        //SpiDrv::waitForSlaveReady(); //blocking, see above
+        
+        //Initiate Transaction
+        SpiDrv::spiSlaveSelect();
+
+        // Wait for reply
+        uint8_t _data = 0;
+        uint8_t _dataLen = 0;
+        uint8_t result = SpiDrv::waitResponseCmd(REQ_HOST_BY_NAME_CMD, PARAM_NUMS_1, &_data, &_dataLen); //TODO: Blocking?
+
+        SpiDrv::spiSlaveDeselect();
+
+        if (result) {
+            result = (_data == 1);
+        }
+        _reqstate = 0; //reset this for another clean call.
+        return result;
+    }
+    return 0;
+}
+
 int WiFiDrv::getHostByName(IPAddress& aResult)
 {
 	uint8_t  _ipAddr[WL_IPV4_LENGTH];
@@ -776,6 +833,57 @@ int WiFiDrv::getHostByName(IPAddress& aResult)
     return result;
 }
 
+int WiFiDrv::getHostByName_nb(IPAddress& aResult)
+{
+    static int _reqstate = 0; //TODO: this assumes only one request is ever pending! This should probably be protected with a mutex, but I'm lazy and in my application it should be fine!
+    uint8_t  _ipAddr[WL_IPV4_LENGTH];
+    IPAddress dummy(0xFF,0xFF,0xFF,0xFF);
+    int result = 0;
+
+    if (_reqstate == 0) { //block 0 //check that the Spi Driver is initialized
+        if (!SpiDrv::initialized) SpiDrv::begin(); //TODO: blocking, but we'll deal with it later.
+        _reqstate = 1;
+    }
+
+    if (_reqstate == 1 || _reqstate == 2) { //blocks 1 and 2 used to waitForSlaveReady
+        //SpiDrv::waitForSlaveReady(); //Blocking version spi_drv.cpp line 218
+        if (!SpiDrv::spiSlaveReady()) return 0; //slave is not ready
+    }
+    
+    if (_reqstate == 1) { //block 1 - Send Command
+        //Initiate Transaction
+        SpiDrv::spiSlaveSelect();
+
+        // Send Command
+        SpiDrv::sendCmd(GET_HOST_BY_NAME_CMD, PARAM_NUMS_0);
+
+        SpiDrv::spiSlaveDeselect();
+        _reqstate = 2;
+        return 0;
+    }
+
+    
+    
+    if (_reqstate == 2) { //block 2 - Parse Response
+        //Initiate Transaction
+        SpiDrv::spiSlaveSelect();
+
+        // Wait for reply
+        uint8_t _dataLen = 0;
+        if (!SpiDrv::waitResponseCmd(GET_HOST_BY_NAME_CMD, PARAM_NUMS_1, _ipAddr, &_dataLen))
+        {
+            WARN("error waitResponse");
+        }else{
+            aResult = _ipAddr;
+            result = (aResult != dummy);
+        }
+        SpiDrv::spiSlaveDeselect();
+        _reqstate = 0; //reset this for another clean call.
+        return result;
+    }
+    return 0;
+}
+
 int WiFiDrv::getHostByName(const char* aHostname, IPAddress& aResult)
 {
 	if (reqHostByName(aHostname))
@@ -784,6 +892,20 @@ int WiFiDrv::getHostByName(const char* aHostname, IPAddress& aResult)
 	}else{
 		return 0;
 	}
+}
+
+int WiFiDrv::getHostByName_nb(const char* aHostname, IPAddress& aResult) //TODO: given that I only really use the _nb functions above here, I might just unroll them here.
+{
+    static int _reqstate = 0;
+    if (_reqstate == 0) { //block 0 - request the DNS address lookup
+        if (reqHostByName_nb(aHostname)) _reqstate = 1;
+    }
+    if (_reqstate == 1) { //block 1 - request the DNS address from the NINA
+        int result = getHostByName_nb(aResult);
+        if (result) _reqstate = 0; //clean up for next time
+        return result;
+    }
+    return 0;
 }
 
 const char*  WiFiDrv::getFwVersion()

@@ -52,7 +52,7 @@ int WiFiClient::connect(const char* host, uint16_t port) {
 }
 
 int WiFiClient::connect(IPAddress ip, uint16_t port) {
-    if (_sock != NO_SOCKET_AVAIL)
+    if (_sock != NO_SOCKET_AVAIL) //stop and attempt a reconnection...
     {
       stop();
     }

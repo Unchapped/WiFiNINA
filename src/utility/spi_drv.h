@@ -61,6 +61,8 @@ public:
 
     static void waitForSlaveReady(bool const feed_watchdog = false);
 
+    static bool spiSlaveReady();
+
     //static int waitSpiChar(char waitChar, char* readChar);
 
     static int waitSpiChar(unsigned char waitChar);

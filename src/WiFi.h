@@ -266,6 +266,7 @@ public:
      *          else error code
      */
     int hostByName(const char* aHostname, IPAddress& aResult);
+    int hostByName_nb(const char* aHostname, IPAddress& aResult);
 
     unsigned long getTime();
 

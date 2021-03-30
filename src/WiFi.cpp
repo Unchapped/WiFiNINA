@@ -379,6 +379,11 @@ int WiFiClass::hostByName(const char* aHostname, IPAddress& aResult)
 	return WiFiDrv::getHostByName(aHostname, aResult);
 }
 
+int WiFiClass::hostByName_nb(const char* aHostname, IPAddress& aResult)
+{
+	return WiFiDrv::getHostByName_nb(aHostname, aResult);
+}
+
 unsigned long WiFiClass::getTime()
 {
 	return WiFiDrv::getTime();

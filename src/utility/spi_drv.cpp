@@ -210,6 +210,11 @@ char SpiDrv::readChar()
 #define waitSlaveSignalH() while(digitalRead(SLAVEREADY) != HIGH){}
 #define waitSlaveSignalL() while(digitalRead(SLAVEREADY) != LOW){}
 
+//need to externalize this from the namespace for use in non-blocking function implementations!
+bool SpiDrv::spiSlaveReady() {
+    return (digitalRead(SLAVEREADY) == LOW);
+}
+
 void SpiDrv::waitForSlaveSign()
 {
 	while (!waitSlaveSign());
