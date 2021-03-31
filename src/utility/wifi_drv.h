@@ -51,6 +51,11 @@ private:
 	static uint8_t  _subnetMask[WL_IPV4_LENGTH];
 	static uint8_t  _gatewayIp[WL_IPV4_LENGTH];
 
+	static uint8_t _nb_lock_owner;
+	static bool acquire_nb_lock(uint8_t my_id); //uses the command enums in wifi_spi.h as a "process ID"
+	static bool release_nb_lock(uint8_t my_id); //uses the command enums in wifi_spi.h as a "process ID"
+
+
 	/*
 	 * Get network Data information
 	 */
@@ -68,6 +73,7 @@ private:
     static void getRemoteData(uint8_t sock, uint8_t *ip, uint8_t *port);
 
 public:
+    static uint8_t get_lock_owner();
 
     /*
      * Driver initialization

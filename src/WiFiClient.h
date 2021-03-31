@@ -35,6 +35,7 @@ public:
 
   uint8_t status();
   virtual int connect(IPAddress ip, uint16_t port);
+  virtual int connect_nb(IPAddress ip, uint16_t port);
   virtual int connect(const char *host, uint16_t port);
   virtual int connectSSL(IPAddress ip, uint16_t port);
   virtual int connectSSL(const char *host, uint16_t port);

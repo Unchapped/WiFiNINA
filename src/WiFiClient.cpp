@@ -79,6 +79,39 @@ int WiFiClient::connect(IPAddress ip, uint16_t port) {
     return 1;
 }
 
+int WiFiClient::connect_nb(IPAddress ip, uint16_t port) {
+    static int _state = 0;
+    static unsigned long _timeout_start = 0;
+
+    if (_state == 0){
+      //stop and attempt a reconnection...
+      if (_sock != NO_SOCKET_AVAIL) stop();
+
+      _sock = ServerDrv::getSocket(); ///TODO: see if this blocks
+      if (_sock != NO_SOCKET_AVAIL) {
+        ServerDrv::startClient(uint32_t(ip), port, _sock); ///TODO: see if this blocks
+
+      } else {
+        //Serial.println("No Socket available");
+        return 0;
+      }
+      _timeout_start = millis();
+      _state = 1;
+    }
+
+    if (_state == 1) {
+      if (!connected()) {
+        if (millis() - _timeout_start < WIFICLIENT_TIMEOUT) _state = 0; //connect failed, reset for new transaction
+        return 0;
+      } else {
+        //success!  
+         _state = 0;
+         return 1;
+      }
+    }
+    return 0; //should never get here, invalid state;
+}
+
 int WiFiClient::connectSSL(IPAddress ip, uint16_t port)
 {
     if (_sock != NO_SOCKET_AVAIL)

@@ -48,7 +48,34 @@ uint8_t WiFiDrv::_gatewayIp[] = {0};
 char    WiFiDrv::fwVersion[] = {0};
 
 
+
 // Private Methods
+
+//this is a basic lock for the _nb nonblocking methods
+//TODO: really, the blocking ones should respect this too, but alas, I am lazy.
+uint8_t WiFiDrv::_nb_lock_owner = 0; //uses the command enums in wifi_spi.h as a "process ID"
+
+bool WiFiDrv::acquire_nb_lock(uint8_t my_id) {
+	if (_nb_lock_owner == 0) {
+		_nb_lock_owner = my_id;
+		return true;
+	} else if (_nb_lock_owner == my_id) {
+		return true;
+	}
+	return false;
+}
+
+bool WiFiDrv::release_nb_lock(uint8_t my_id) {
+	if (_nb_lock_owner == my_id) {
+		_nb_lock_owner = 0;
+		return true;
+	} else if (_nb_lock_owner == 0) {
+		return true;
+	}
+	return false;
+}
+
+uint8_t WiFiDrv::get_lock_owner() {return _nb_lock_owner;}
 
 void WiFiDrv::getNetworkData(uint8_t *ip, uint8_t *mask, uint8_t *gwip)
 {
@@ -750,14 +777,15 @@ uint8_t WiFiDrv::reqHostByName(const char* aHostname)
 
 uint8_t WiFiDrv::reqHostByName_nb(const char* aHostname)
 {   
-    static int _reqstate = 0; //TODO: this assumes only one request is ever pending! This should probably be protected with a mutex, but I'm lazy and in my application it should be fine!
+    static int _reqstate = 0;
+    if (!acquire_nb_lock(REQ_HOST_BY_NAME_CMD)) return 0; //someone else has this locked!
 
     if (_reqstate == 0) { //block 0 //check that the Spi Driver is initialized
         if (!SpiDrv::initialized) SpiDrv::begin(); //TODO: blocking, but we'll deal with it later.
         _reqstate = 1;
     }
 
-    if (_reqstate == 1 || _reqstate == 2) { //blocks 1 and 2 used to waitForSlaveReady
+    if (_reqstate > 0) { //blocks 1 and 2 used to waitForSlaveReady
         //SpiDrv::waitForSlaveReady(); //Blocking version spi_drv.cpp line 218
         if (!SpiDrv::spiSlaveReady()) return 0; //slave is not ready
     }
@@ -799,7 +827,8 @@ uint8_t WiFiDrv::reqHostByName_nb(const char* aHostname)
         if (result) {
             result = (_data == 1);
         }
-        _reqstate = 0; //reset this for another clean call.
+        _reqstate = 0; //reset this for another clean call
+        release_nb_lock(REQ_HOST_BY_NAME_CMD);
         return result;
     }
     return 0;
@@ -835,7 +864,9 @@ int WiFiDrv::getHostByName(IPAddress& aResult)
 
 int WiFiDrv::getHostByName_nb(IPAddress& aResult)
 {
-    static int _reqstate = 0; //TODO: this assumes only one request is ever pending! This should probably be protected with a mutex, but I'm lazy and in my application it should be fine!
+    static int _reqstate = 0;
+    if (!acquire_nb_lock(GET_HOST_BY_NAME_CMD)) return 0; //someone else has this locked!
+
     uint8_t  _ipAddr[WL_IPV4_LENGTH];
     IPAddress dummy(0xFF,0xFF,0xFF,0xFF);
     int result = 0;
@@ -845,7 +876,7 @@ int WiFiDrv::getHostByName_nb(IPAddress& aResult)
         _reqstate = 1;
     }
 
-    if (_reqstate == 1 || _reqstate == 2) { //blocks 1 and 2 used to waitForSlaveReady
+    if (_reqstate > 0) { //blocks 1 and 2 used to waitForSlaveReady
         //SpiDrv::waitForSlaveReady(); //Blocking version spi_drv.cpp line 218
         if (!SpiDrv::spiSlaveReady()) return 0; //slave is not ready
     }
@@ -879,6 +910,7 @@ int WiFiDrv::getHostByName_nb(IPAddress& aResult)
         }
         SpiDrv::spiSlaveDeselect();
         _reqstate = 0; //reset this for another clean call.
+        release_nb_lock(GET_HOST_BY_NAME_CMD);
         return result;
     }
     return 0;
